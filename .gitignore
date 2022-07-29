@@ -1,3 +1,11 @@
+# Data
+data
+UDFS_Climate.Rproj
+
+# apple 
+.DS_Store
+*/.DS_Store
+
 # History files
 .Rhistory
 .Rapp.history
