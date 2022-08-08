@@ -22,8 +22,8 @@ rootdir <- paste(here(), "/", sep ="")
 #rootdir <- "/Users/maxwell/climate/"
 
 # Data loading functions
-source(paste(rootdir, "full_test/data_utils.R", sep = ""))
+source(paste(rootdir, "NCASI_APP/data_utils.R", sep = ""))
 
 # Plotting functions
-source(paste(rootdir, "full_test/plot_utils.R", sep = ""))
+source(paste(rootdir, "NCASI_APP/plot_utils.R", sep = ""))
   

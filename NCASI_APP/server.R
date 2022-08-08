@@ -253,12 +253,14 @@ app_info <- modalDialog(
       # extract latitude/longitude from user click
       lat <- input$map_shape_click[[3]]
       lon <- input$map_shape_click[[2]]
-      df <- data.frame(LAT = c(lat), LON = c(lon))
+      locations <- data.frame(LAT = c(lat), LON = c(lon))
+      print(locations)
+      # load data for requested point
+      dat <- subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
+      print(dim(dat))
+      return(dat)
       
-      # load data for requested point 
-      load_cmip5_from_df_all_rcp(df) 
-      # temporarily load file for debugging purposes
-      # fread(paste(rootdir, "data/dummy_app_data.csv", sep=""))
+
 
     }else{
         #use the draw_stop event to detect when users finished drawing
@@ -280,50 +282,12 @@ app_info <- modalDialog(
           dplyr::select(c(LON, LAT)) %>% tibble()
         
         # load data
-        load_cmip5_from_df_all_rcp(dat)
-        # fread(paste(rootdir, "data/dummy_app_data.csv", sep=""))
+        subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
     }
   })
   
   output$table <- DT::renderDataTable({
-    
-    
-    
-    yr1 <- app_data() %>%
-      filter(YR == input$year[1] &
-               RCP == input$rcps)
-    
-    yr2 <- app_data() %>%
-      filter(YR == input$year[2] &
-               RCP == input$rcps)
-    
-    df <- data.frame(Metric = c("Yearly Mean Temp",
-                                "Yearly Average Max Temp",
-                                "Yearly Average Min Temp",
-                                "Highest Yearly Temperature",
-                                "Lowest Yearly Temperature",
-                                "Annual Precipitation"),
-                     Year1 = c(round(mean(yr1$yr_mean_temp, na.rm = T), 2),
-                               round(mean(yr1$yr_max_temp, na.rm = T), 2),
-                               round(mean(yr1$yr_min_temp, na.rm = T), 2),
-                               round(max(yr1$max_temp, na.rm = T), 2),
-                               round(min(yr1$min_temp, na.rm = T), 2),
-                               round(mean(yr1$yr_precip, na.rm = T), 2)),
-                     Year2 = c(round(mean(yr2$yr_mean_temp, na.rm = T), 2),
-                               round(mean(yr2$yr_max_temp, na.rm = T), 2),
-                               round(mean(yr2$yr_min_temp, na.rm = T), 2),
-                               round(max(yr2$max_temp, na.rm = T), 2),
-                               round(min(yr2$min_temp, na.rm = T), 2),
-                               round(mean(yr2$yr_precip, na.rm = T), 2))) %>% 
-      mutate(Difference = Year2 - Year1,
-             Difference = round(Difference, 2))
-    
-    colnames(df)[2] <- paste(input$year[1])
-    colnames(df)[3] <- paste(input$year[2])
-    
-    df %>%
-      DT::datatable(options = list(dom = 't'))
-    
+    summary_stats(app_data(), year1 = input$year[1], year2 = input$year[2], RCP = input$rcps)
   })
   
   output$lines <- renderPlotly({
@@ -377,7 +341,7 @@ app_info <- modalDialog(
     dat_join <- full_join(tree_dat, dat_1) %>%
       drop_na()
     
-    leaf_pallet <- colorBin("viridis", domain = dat_join$ACRES)
+    leaf_pallet <- colorBin("viridis", domain = dat_join$meantmp)
     
     dat_join %>%
       distinct(ACRES, LAT, LON, meantmp, .keep_all= TRUE) %>%
@@ -394,7 +358,7 @@ app_info <- modalDialog(
         weight = 1,
         color = "grey",
         fill = T,
-        fillColor = ~leaf_pallet(dat_join$ACRES),
+        fillColor = ~leaf_pallet(dat_join$meantmp),
         fillOpacity = 0.3,
         popup = paste0(
           "<b>", "Tree Information", "</b>",
@@ -408,7 +372,7 @@ app_info <- modalDialog(
       ) %>%
       addLegend("bottomright", 
                 pal = leaf_pallet, 
-                values = ~dat_join$ACRES,
+                values = ~dat_join$meantmp,
                 title = "Acres of selected tree",
                 opacity = 1
       ) %>%

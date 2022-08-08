@@ -2,6 +2,9 @@
 data
 UDFS_Climate.Rproj
 
+# deal with changing data load 
+scratch 
+
 # apple 
 .DS_Store
 */.DS_Store

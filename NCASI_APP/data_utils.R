@@ -2,13 +2,17 @@
 # UDFS: Maxwell Vanlandschoot and Julian Schmitt -----
 # Summer 2022 ----------------------------------------
 
+# slim data files 
+clim_dat <- read.csv("~/Documents/Research/FIA_22/UFDS_Climate/data/yearly_ci_all.csv")
+
+
 
 # load data files ------------------------------------
 # load metadata crucial to file pathing and tree data
-meta <- readRDS(paste(rootdir, "data/RCP26/meta.RData", sep=""))
-tree_data <- fread(paste(rootdir, "data/leaflet_dat/tree_dat.csv", sep=""))
-species_codes <- fread(paste(rootdir, "data/leaflet_dat/species_codes.csv", sep="")) %>% select(c(COMMON_NAME, SPECIES_CODE))
-hist_clim_x_tree_dat <- data.table(read.table(paste(rootdir, "data/historical_climate_tree_data_v3.csv", sep = ""), 
+#meta <- readRDS(paste(rootdir, "data/meta.RData", sep=""))
+tree_data <- fread(paste(rootdir, "data/tree_dat.csv", sep=""))
+species_codes <- fread(paste(rootdir, "data/species_codes.csv", sep="")) %>% select(c(COMMON_NAME, SPECIES_CODE))
+hist_clim_x_tree_dat <- data.table(read.table(paste(rootdir, "data/historical_climate_tree_data.csv", sep = ""), 
                                               sep=",", header=TRUE))
 # rename to match columns of other datasets
 hist_clim_x_tree_dat <- hist_clim_x_tree_dat %>% dplyr::rename(mean_temp = meantmp, 
@@ -16,7 +20,7 @@ hist_clim_x_tree_dat <- hist_clim_x_tree_dat %>% dplyr::rename(mean_temp = meant
                                                         max_temp = maxtmp) 
 
 # process data @MAXWELL - explain why were doing this
-RCP_60_trim <- fread(paste(rootdir, "data/leaflet_dat/RCP_60_trim.csv", sep="")) %>%
+RCP_60_trim <- fread(paste(rootdir, "data/background_heatmap.csv", sep="")) %>%
   mutate(lat1 = LAT - 0.0625,
          lon1 = LON + 0.0625,
          lat2 = LAT + 0.0625,
@@ -89,6 +93,34 @@ load_cmip5_from_df_all_rcp <- function(coord_df, rcp_pathways = c(26, 45, 60, 85
   
 }
 
+sel_CMIP5_dat <- function(locations) {
+  
+  # find closest location with available data
+  LATS <- clim_dat$LAT
+  LONS <- clim_dat$LON
+  # iterate through selected points 
+  locs <- data.frame(LAT = c(), LON = c())
+  for (i in 1:dim(locations)[1]){
+    close_lat <- LATS[which.min(abs(LATS-locations[i,]$LAT))]
+    close_lon <- LONS[which.min(abs(LONS-locations[i,]$LON))]
+    locs <- rbind(locs, c(close_lat, close_lon))
+  }
+  locs <- locs %>% rename(LAT = 1, LON = 2)
+  print(locs)
+  # select data corresponding to these points
+  dat_all_locs <- subset(clim_dat, (LAT %in% locs$LAT) & (LON %in% locs$LON))
+  #return(dat_all_locs)
+  # agg out yr and rcp
+  dat_combi <- dat_all_locs %>% group_by(YR, RCP) %>% drop_na() %>% 
+    summarize(meantmp = mean(meantmp, na.rm = T))
+    # summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
+    #           maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2), 
+    #           mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2), 
+    #           precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2))
+  return(dat_combi)
+}
+sel_CMIP5_dat(locations) %>% head(5)
+
 
 
 
@@ -111,5 +143,48 @@ t_series_CMIP5 <- function(scen, var, lat, lon, l_quantile = 0.05, h_quantile=0.
     dplyr::rename(LB = "5%", UB = "95%")
   
   return(temp_series)
+}
+
+
+
+# Summary Statistics First Page ----------------------
+summary_stats<- function(dat, year1, year2, RCP){
+  
+  yr1 <- dat %>%
+    drop_na() %>% 
+    dplyr::filter(YR == year1 &
+             RCP == RCP)
+  
+  yr2 <- dat %>%
+    drop_na() %>% 
+    dplyr::filter(YR == year2 &
+             RCP == RCP)
+  yr1
+  
+  # df <- data.frame(Metric = c("Yearly Mean Temp",
+  #                             "Yearly Average Max Temp",
+  #                             "Yearly Average Min Temp",
+  #                             "Highest Yearly Temperature",
+  #                             "Lowest Yearly Temperature",
+  #                             "Annual Precipitation"),
+  #                  Year1 = c(round(mean(yr1$yr_mean_temp, na.rm = T), 2),
+  #                            round(mean(yr1$yr_max_temp, na.rm = T), 2),
+  #                            round(mean(yr1$yr_min_temp, na.rm = T), 2),
+  #                            round(max(yr1$max_temp, na.rm = T), 2),
+  #                            round(min(yr1$min_temp, na.rm = T), 2),
+  #                            round(mean(yr1$yr_precip, na.rm = T), 2)),
+  #                  Year2 = c(round(mean(yr2$yr_mean_temp, na.rm = T), 2),
+  #                            round(mean(yr2$yr_max_temp, na.rm = T), 2),
+  #                            round(mean(yr2$yr_min_temp, na.rm = T), 2),
+  #                            round(max(yr2$max_temp, na.rm = T), 2),
+  #                            round(min(yr2$min_temp, na.rm = T), 2),
+  #                            round(mean(yr2$yr_precip, na.rm = T), 2))) %>% 
+  #   mutate(Difference = Year2 - Year1,
+  #          Difference = round(Difference, 2))
+  # 
+  # colnames(df)[2] <- paste(year1)
+  # colnames(df)[3] <- paste(year2)
+  # df %>%
+  #   DT::datatable(options = list(dom = 't'))
 }
   
