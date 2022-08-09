@@ -4,7 +4,9 @@
 
 # slim data files 
 clim_dat <- read.csv("~/Documents/Research/FIA_22/UFDS_Climate/data/yearly_ci_all.csv")
-
+clim_dat <- clim_dat[-1, ]
+clim_dat[] <- lapply(clim_dat, function(x) as.numeric(as.character(x)))
+#clim_dat <- clim_dat %>% drop_na() %>% dplyr::mutate_if(is.character, as.numeric())
 
 
 # load data files ------------------------------------
@@ -108,18 +110,21 @@ sel_CMIP5_dat <- function(locations) {
   locs <- locs %>% rename(LAT = 1, LON = 2)
   print(locs)
   # select data corresponding to these points
-  dat_all_locs <- subset(clim_dat, (LAT %in% locs$LAT) & (LON %in% locs$LON))
+  dat_all_locs <- subset(clim_dat, (LAT %in% locs$LAT) & (LON %in% locs$LON)) %>% drop_na()
+  dat_all_locs <- dat_all_locs %>% select(c(-X, -LAT, -LON))
+  #dat_avg <-  dat_all_locs %>% group_by(RCP, YR) 
   #return(dat_all_locs)
   # agg out yr and rcp
-  dat_combi <- dat_all_locs %>% group_by(YR, RCP) %>% drop_na() %>% 
-    summarize(meantmp = mean(meantmp, na.rm = T))
-    # summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
-    #           maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2), 
-    #           mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2), 
-    #           precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2))
+  dat_combi <- dat_all_locs %>% group_by(YR, RCP) %>% 
+    #summarize(meantmp = mean(meantmp))
+    summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
+              maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2),
+              mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2),
+              precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2))
   return(dat_combi)
 }
-sel_CMIP5_dat(locations) %>% head(5)
+# z <- sel_CMIP5_dat(data.frame(LAT = c(43.9375), LON = c(-70.6875))) 
+# z
 
 
 
@@ -159,32 +164,26 @@ summary_stats<- function(dat, year1, year2, RCP){
     drop_na() %>% 
     dplyr::filter(YR == year2 &
              RCP == RCP)
-  yr1
-  
-  # df <- data.frame(Metric = c("Yearly Mean Temp",
-  #                             "Yearly Average Max Temp",
-  #                             "Yearly Average Min Temp",
-  #                             "Highest Yearly Temperature",
-  #                             "Lowest Yearly Temperature",
-  #                             "Annual Precipitation"),
-  #                  Year1 = c(round(mean(yr1$yr_mean_temp, na.rm = T), 2),
-  #                            round(mean(yr1$yr_max_temp, na.rm = T), 2),
-  #                            round(mean(yr1$yr_min_temp, na.rm = T), 2),
-  #                            round(max(yr1$max_temp, na.rm = T), 2),
-  #                            round(min(yr1$min_temp, na.rm = T), 2),
-  #                            round(mean(yr1$yr_precip, na.rm = T), 2)),
-  #                  Year2 = c(round(mean(yr2$yr_mean_temp, na.rm = T), 2),
-  #                            round(mean(yr2$yr_max_temp, na.rm = T), 2),
-  #                            round(mean(yr2$yr_min_temp, na.rm = T), 2),
-  #                            round(max(yr2$max_temp, na.rm = T), 2),
-  #                            round(min(yr2$min_temp, na.rm = T), 2),
-  #                            round(mean(yr2$yr_precip, na.rm = T), 2))) %>% 
-  #   mutate(Difference = Year2 - Year1,
-  #          Difference = round(Difference, 2))
-  # 
-  # colnames(df)[2] <- paste(year1)
-  # colnames(df)[3] <- paste(year2)
-  # df %>%
-  #   DT::datatable(options = list(dom = 't'))
+
+  df <- data.frame(Metric = c("Yearly Mean Temp",
+                              "Yearly Average Max Temp",
+                              "Yearly Average Min Temp",
+                              "Annual Precipitation"),
+                   Unit = c("°C", "°C", "°C", "mm/yr"),
+                   Year1 = c(round(mean(yr1$meantmp, na.rm = T), 2),
+                             round(mean(yr1$maxtmp, na.rm = T), 2),
+                             round(mean(yr1$mintmp, na.rm = T), 2),
+                             round(mean(yr1$precip, na.rm = T)*365, 2)),
+                   Year2 = c(round(mean(yr2$meantmp, na.rm = T), 2),
+                             round(mean(yr2$maxtmp, na.rm = T), 2),
+                             round(mean(yr2$mintmp, na.rm = T), 2),
+                             round(mean(yr2$precip, na.rm = T)*365, 2))) %>%
+    mutate(Difference = Year2 - Year1,
+           Difference = round(Difference, 2))
+
+  colnames(df)[3] <- paste(year1)
+  colnames(df)[4] <- paste(year2)
+  df %>%
+    DT::datatable(options = list(dom = 't'))
 }
   

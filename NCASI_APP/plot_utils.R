@@ -8,24 +8,22 @@
 plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, ci_level = 90) {
   
   # get quantiles from CI_level
-  l_quantile = (100-ci_level)/2/100
-  h_quantile = 1 - l_quantile
   metric <- NA
   unit <- "(°C)"
 
   # Static Parameters and colors  
   scens <- c(26, 45, 60,85)
   grp = c("grp1", "grp2", "grp3", "grp4")
-  fill_cols <-c('rgba(48, 90, 219, 0.7)', 'rgba(98, 170, 88, 0.7)', 'rgba(255, 255, 0, 0.7)', 'rgba(255, 0, 0, 0.7)')
-  
+  fill_cols <-c('rgba(48, 90, 219, 0.4)', 'rgba(98, 170, 88, 0.4)', 'rgba(255, 255, 0, 0.4)', 'rgba(255, 0, 0, 0.4)')
+  fill_transp <-c('rgba(48, 90, 219, 0.4)', 'rgba(98, 170, 88, 0.4)', 'rgba(255, 255, 0, 0.4)', 'rgba(255, 0, 0, 0.4)')
+
   # Select year range, clean data, and group
-  CI_dat <- full_dat %>% filter(YR >= year1 & YR <= year2) %>% 
-    drop_na(var) %>% 
-    group_by(YR, MODEL, RCP)
-  
+  CI_dat <- full_dat %>% filter(YR >= year1 & YR <= year2)
+  print(names(CI_dat))
   # Process Data to yearly level based on parameter of interest, set metric and unit params
   if (var %in% c("mean_temp")) {
-    CI_dat <- CI_dat %>% summarize(annual_mean = mean(get(var)))
+    CI_dat <- CI_dat %>% select(YR, RCP, meantmp, meantmp_LB, meantmp_UB) %>% 
+      rename(ens_mean = "meantmp", LB = "meantmp_LB", UB = "meantmp_UB") %>% ungroup()
     metric <- "Mean Temperature"
   } else if (var %in% c("precip")) {
     CI_dat <- CI_dat %>% summarize(annual_mean = mean(get(var))*365.25) # convert from mm/day -> mm/yr
@@ -38,13 +36,7 @@ plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, c
     CI_dat  <- CI_dat %>% summarize(annual_mean = min(get(var)))
     metric <- "Min Temperature"
   }
-  CI_dat <- CI_dat %>% ungroup() %>%
-    group_by(YR, RCP) %>%
-    summarize("quantile" = list(round(quantile(annual_mean, c(l_quantile, h_quantile), na.rm = T), 2)),
-              "ens_mean" = round(mean(annual_mean, na.rm=T), 2)) %>%
-    unnest_wider(quantile) %>%
-    dplyr::rename(LB = "5%", UB = "95%") %>%
-    ungroup()
+
   
   # iteratively add mean and confidence intervals to plotly object
   fig <- plot_ly()
@@ -65,8 +57,7 @@ plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, c
                                y = ~LB, 
                                type = 'scatter', 
                                mode = 'lines',
-                               fillcolor = fill_cols[i], 
-                               group = ~YR, 
+                               fillcolor = fill_transp[i], 
                                line = list(color = 'transparent'),
                                showlegend = FALSE, 
                                name = paste("RCP", as.integer(scens[i])/10, "Ensembles"),
@@ -77,9 +68,7 @@ plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, c
                                type = 'scatter', 
                                mode = 'lines',
                                fill = 'tonexty', 
-                               fillcolor = fill_cols[i], 
-                               opacity = 0.7, 
-                               group = ~year, 
+                               fillcolor = fill_transp[i], 
                                line = list(color = 'transparent'),
                                showlegend = FALSE, 
                                name = paste("RCP", as.integer(scens[i])/10, "Ensembles"),

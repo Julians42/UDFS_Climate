@@ -256,9 +256,9 @@ app_info <- modalDialog(
       locations <- data.frame(LAT = c(lat), LON = c(lon))
       print(locations)
       # load data for requested point
-      dat <- subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
-      print(dim(dat))
-      return(dat)
+      # dat <- subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
+      # print(dim(dat))
+      sel_CMIP5_dat(locations)
       
 
 
@@ -282,7 +282,8 @@ app_info <- modalDialog(
           dplyr::select(c(LON, LAT)) %>% tibble()
         
         # load data
-        subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
+        # subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
+        sel_CMIP5_dat(locations)
     }
   })
   
