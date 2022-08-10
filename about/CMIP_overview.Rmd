@@ -1,0 +1,28 @@
+---
+title: "CMIP Notes"
+author: "Julian Schmitt"
+date: "6/8/2022"
+output: pdf_document
+---
+
+# CMIP Modeling: Overview and Literature Review
+The Coupled Model Intercomparison Project is a collaboration between climate science research groups around the world sponsored by the Intergovernmental Panel on Climate Change (IPCC) to understand how the climate is changing in response to both natural and anthropogenic forcings both in the past and importantly looking towards the future. Most modeling details through the end of the 21st century. As such, we will focus on this time period for our evaluation. 
+
+## Climate Modeling
+Broadly climate modeling in the 21st century takes a modern understanding of the physical processes that govern our environment, from land, to oceans, to ice sheets and the atmosphere, and couple these systems of equations. Then finite element analysis, or a discretization over the globe is performed and, after initializing conditions, the earth is allowed to evolve under hypothesized forcing, e.g. adding $CO_2$ and other aerosols. Due to extreme sensitivity on initial conditions, typically models are run many times, granting access to a more robust estimate for future climate under the modeled hypotheses and allows us to incorporate uncertainty. A typical number of runs, or ensemble members, is between 30 and 50, although this is subject to the discretion and available compute power of the scientists running it. \\
+
+### Typical Climate model
+A typical large ensemble model will have dozens of collaborators working separately on improving modeling separate aspects of the climate sphere, for example ocean overturn or land-atmosphere moisture feedback fluxes. In the United States, the National Oceanic and Atmospheric Administration (NOAA) funds most of these large-scale endeavors. Climate models are notoriously expensive to run, requiring large amounts of parallel compute, often requiring supercomputers and tens to hundreds of thousands of computer cores to execute. US DOE supercomputer GAEA in Oak Ridge, TN, which can achieve over 5 petaflops (a typical laptop is ~100 gigaflops, ~4.5 orders of magnitude smaller) is an example of a machine used for the job. 
+
+## The Role of CMIP
+The CMIP project provides reports combining tens of these such models produced by different nations around the globe with the goal of creating a concensus understanding of how global temperature, precipitation, sea level, and storm patterns (among others) are expected to change in the coming century (see [IPPC](https://www.ipcc.ch)). As computing and scientific understanding in climate research have been progressing, improvements and refinements to modeling can be made. For example, recent advances in computing have allowed spatial resolutions to be improved from hundreds to single kilometer resolution, which improves both local forecasts and accuracies on larger scales as weather systems are able to be resolved on finer scales. These systems are still approximations however -- for example, tornado and to a lesser extent hurricane vortices cannot be resolved on the kilometer scale for these truly global projects at current computing power. 
+
+## Comparison of CMIP5 with CMIP6 
+The CMIP5 project report was first released in 2013, with CMIP6 being released last year in 2021. One major difference in the two models is that the equilibrium climate sensitivity (ECS), or how much the earth warms with a doubling of $CO_2$, is notably higher, with upper end estimates of 5.8 as opposed to 4.5°C. For forests, this means that CMIP5 temperature trajectories are potential underestimates. We expect to see at least a doubling in $CO_2$ concentrations by 2100 and as land temperatures are significantly more sensitive to temperature changes, we can expect average land temperatures to increase by significantly more than 5°C. On a more local scale, CMIP6 has focused on improving predictions at smaller resolutions, which will be particularly valuable for foresters hoping to estimate climatic changes in a particular states forest. 
+
+
+## Work Cited
+https://www.noaa.gov/organization/information-technology/gaea 
+https://www.carbonbrief.org/cmip6-the-next-generation-of-climate-models-explained/ 
+3. https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021EF001995
+
