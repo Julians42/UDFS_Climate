@@ -109,7 +109,7 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
   
   # Subset data to years and variable of interest
   dat <- full_dat %>% filter((YR == year1) | (YR == year2)) %>% 
-    select(YR, MON, RCP, MODEL, all_of(var))
+    select(YR, MON, RCP, all_of(var))
   
   # rename variable of interest, summarize over ensemble members, and name months
   dat <- dat %>% dplyr::rename(vari = var) %>% 
@@ -134,8 +134,8 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
 
   dat$month <- reorder(dat$month, dat$MON)
   labels. <- data.frame(row.names = c("mean_temp", "max_temp", "min_temp", "precip"), 
-                        val = c("Yearly Mean Temperature (°C)", "Yearly Max Temperature (°C)", 
-                                "Yearly Min Temperature (°C)", "Avg Daily Precipitation (mm/day)"))
+                        val = c("Mean Temperature (°C)", "Max Temperature (°C)", 
+                                "Min Temperature (°C)", "Daily Precipitation (mm/day)"))
   
   # plt <- plt + guides(fill="none")+
   #   labs(x=labels.[var_x, ], y=labels.[var_y,], 

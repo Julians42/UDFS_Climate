@@ -277,13 +277,49 @@ app_info <- modalDialog(
         #use over from the sp package to identify selected cities
         selected_plots <- multipoly %over% SpatialPolygons(list(Polygons(list(drawn_polygon),"drawn_polygon")))
         
-        dat <- data.frame(multipoly[which(!is.na(selected_plots)),"LON"],
+        locations <- data.frame(multipoly[which(!is.na(selected_plots)),"LON"],
                           multipoly[which(!is.na(selected_plots)),"LAT"]) %>%
           dplyr::select(c(LON, LAT)) %>% tibble()
         
         # load data
         # subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
         sel_CMIP5_dat(locations)
+    }
+  })
+  
+  mon_data <- reactive({
+    
+    if(is.null(input$map_draw_stop)){
+      # extract latitude/longitude from user click
+      lat <- input$map_shape_click[[3]]
+      lon <- input$map_shape_click[[2]]
+      locations <- data.frame(LAT = c(lat), LON = c(lon))
+
+      sel_CMIP5_mon(locations)
+      
+      
+      
+    }else{
+      #use the draw_stop event to detect when users finished drawing
+      req(input$map_draw_stop)
+      print(input$map_draw_new_feature)
+      
+      #get the coordinates of the polygon
+      polygon_coordinates <- input$map_draw_new_feature$geometry$coordinates[[1]]
+      
+      #transform them to an sp Polygon
+      drawn_polygon <- Polygon(do.call(rbind, lapply(polygon_coordinates,
+                                                     function(x){c(x[[1]][1], x[[2]][1])})))
+      
+      #use over from the sp package to identify selected cities
+      selected_plots <- multipoly %over% SpatialPolygons(list(Polygons(list(drawn_polygon),"drawn_polygon")))
+      
+      locations <- data.frame(multipoly[which(!is.na(selected_plots)),"LON"],
+                        multipoly[which(!is.na(selected_plots)),"LAT"]) %>%
+        dplyr::select(c(LON, LAT)) %>% tibble()
+      
+      # load data
+      sel_CMIP5_mon(locations)
     }
   })
   
@@ -296,7 +332,7 @@ app_info <- modalDialog(
   })
   
   output$curves <- renderPlotly({
-    plt_month_trajectory(app_data(), input$metrics, input$year[1], input$year[2])
+    plt_month_trajectory(mon_data(), input$metrics, input$year[1], input$year[2])
     
   })
 

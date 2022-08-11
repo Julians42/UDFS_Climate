@@ -8,6 +8,7 @@ clim_dat <- clim_dat[-1, ]
 clim_dat[] <- lapply(clim_dat, function(x) as.numeric(as.character(x)))
 #clim_dat <- clim_dat %>% drop_na() %>% dplyr::mutate_if(is.character, as.numeric())
 
+clim_mon <- fread("~/Documents/Research/FIA_22/UFDS_Climate/data/clim_dat_monthly.csv")
 
 # load data files ------------------------------------
 # load metadata crucial to file pathing and tree data
@@ -41,60 +42,6 @@ multipoly <- SpatialPointsDataFrame(multipoly[,c("LON","LAT")],multipoly)
 
 
 # (New) Functions to load data -----------------------
-load_cmip5_from_coord <- function(lat, lon, rcp) {
-  #' Loads CMIP5 File from lat/lon pair for specific RCP
-  
-  # find closest datapoint
-  pick_lat <- meta$LAT[which.min(abs(meta$LAT-lat))]
-  pick_lon <- meta$LON[which.min(abs(meta$LON-lon))]
-  
-  # get filepath for location
-  fpath <- paste(rootdir, "data/RCP", rcp, "/LAT_", pick_lat, "_LON_", pick_lon, "_.csv", sep="")
-  
-  # load and return datafile
-  cmip5_dat <- tryCatch(fread(fpath, sep=",", header=TRUE),
-                error = function(e)
-                  print("No CMIP5 Climate data available for that location"))
-  
-  # add column with RCP scenario
-  cmip5_dat$RCP <- rcp
-  
-  return(data.table(cmip5_dat))
-}
-
-# function to load all RCPs for all locations --------
-load_cmip5_from_df_all_rcp <- function(coord_df, rcp_pathways = c(26, 45, 60, 85)) {
-  #' Loads CMIP5 data for all selected points and RCPs 
-  
-  # Load dataframes one-by-one into the list
-  dat_list <- list()
-  
-  # loop through selected points
-  for (i in 1:dim(coord_df)[1]) {
-    for (j in 1:length(rcp_pathways)) {
-      # append file
-      index <- (i-1)*(length(rcp_pathways))+j
-      dat_list[[index]] <- load_cmip5_from_coord(lat = coord_df[i, ]$LAT, 
-                                               lon = coord_df[i, ]$LON, 
-                                               rcp = rcp_pathways[j])
-    }
-  }
-  # join data sets and aggregate
-  dat_joined <- rbindlist(dat_list) %>% 
-    # monthly averages - @MAXWELL, does this summarize actually change anything except renaming?
-    dplyr::rename(mean_temp = meantmp,
-              min_temp = mintmp,
-              max_temp = maxtmp,
-              precip = precip) %>%
-    # add yearly averages by scenario
-    group_by(YR, RCP) %>%
-    mutate(yr_mean_temp = mean(mean_temp, na.rm = T),
-           yr_min_temp = mean(min_temp, na.rm = T),
-           yr_max_temp = mean(max_temp, na.rm = T),
-           yr_precip = mean(precip, na.rm = T))
-  
-}
-
 sel_CMIP5_dat <- function(locations) {
   
   # find closest location with available data
@@ -120,11 +67,44 @@ sel_CMIP5_dat <- function(locations) {
     summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
               maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2),
               mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2),
-              precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2))
+              precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2)) %>% 
+    ungroup()
   return(dat_combi)
 }
-# z <- sel_CMIP5_dat(data.frame(LAT = c(43.9375), LON = c(-70.6875))) 
-# z
+
+sel_CMIP5_mon <- function(locations) {
+  
+  # find closest location with available data
+  LATS <- clim_mon$LAT
+  LONS <- clim_mon$LON
+  # iterate through selected points 
+  locs <- data.frame(LAT = c(), LON = c())
+  for (i in 1:dim(locations)[1]){
+    close_lat <- LATS[which.min(abs(LATS-locations[i,]$LAT))]
+    close_lon <- LONS[which.min(abs(LONS-locations[i,]$LON))]
+    locs <- rbind(locs, c(close_lat, close_lon))
+  }
+  locs <- locs %>% rename(LAT = 1, LON = 2)
+  print(locs)
+  # select data corresponding to these points
+  dat_all_locs <- subset(clim_mon, (LAT %in% locs$LAT) & (LON %in% locs$LON)) %>% drop_na()
+  dat_all_locs <- dat_all_locs %>% select(c(-V1, -LAT, -LON))
+
+  # agg out yr and rcp
+  dat_combi <- dat_all_locs %>% group_by(YR, RCP, MON) %>% 
+    #summarize(meantmp = mean(meantmp))
+    summarize(meantmp = mean(meantmp),
+              maxtmp = mean(maxtmp), 
+              mintmp = mean(mintmp), 
+              precip = mean(precip)) %>% 
+    ungroup() %>% 
+    rename(mean_temp = "meantmp", 
+           max_temp = "maxtmp", 
+           min_temp = "mintmp") # update to app variables
+  return(dat_combi)
+}
+z <- sel_CMIP5_mon(data.frame(LAT = c(43.9364), LON = c(-70.6875)))
+z
 
 
 
