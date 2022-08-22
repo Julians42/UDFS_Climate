@@ -410,7 +410,7 @@ app_info <- modalDialog(
       addLegend("bottomright", 
                 pal = leaf_pallet, 
                 values = ~dat_join$meantmp,
-                title = "Acres of selected tree",
+                title = "PRISM Annual Mean Temperature (°C)",
                 opacity = 1
       ) %>%
       addDrawToolbar(

@@ -64,10 +64,14 @@ sel_CMIP5_dat <- function(locations) {
   # agg out yr and rcp
   dat_combi <- dat_all_locs %>% group_by(YR, RCP) %>% 
     #summarize(meantmp = mean(meantmp))
-    summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
-              maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2),
-              mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2),
-              precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2)) %>% 
+    # summarize(meantmp = mean(meantmp), meantmp_LB = mean(meantmp.1), meantmp_UB = mean(meantmp.2),
+    #           maxtmp = mean(maxtmp), maxtmp_LB = mean(maxtmp.1), maxtmp_UB = mean(maxtmp.2),
+    #           mintmp = mean(mintmp), mintmp_LB = mean(mintmp.1), mintmp_UB = mean(mintmp.2),
+    #           precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2)) %>% 
+    summarize(mean_temp = mean(meantmp), mean_temp_LB = mean(meantmp.1), mean_temp_UB = mean(meantmp.2),
+              max_temp = mean(maxtmp), max_temp_LB = mean(maxtmp.1), max_temp_UB = mean(maxtmp.2),
+              min_temp = mean(mintmp), min_temp_LB = mean(mintmp.1), min_temp_UB = mean(mintmp.2),
+              precip = mean(precip), precip_LB = mean(precip.1), precip_UB = mean(precip.2)) %>%
     ungroup()
   return(dat_combi)
 }
@@ -93,18 +97,15 @@ sel_CMIP5_mon <- function(locations) {
   # agg out yr and rcp
   dat_combi <- dat_all_locs %>% group_by(YR, RCP, MON) %>% 
     #summarize(meantmp = mean(meantmp))
-    summarize(meantmp = mean(meantmp),
-              maxtmp = mean(maxtmp), 
-              mintmp = mean(mintmp), 
+    summarize(mean_temp = mean(meantmp),
+              max_temp = mean(maxtmp), 
+              min_temp = mean(mintmp), 
               precip = mean(precip)) %>% 
-    ungroup() %>% 
-    rename(mean_temp = "meantmp", 
-           max_temp = "maxtmp", 
-           min_temp = "mintmp") # update to app variables
+    ungroup()  # update to app variable names
   return(dat_combi)
 }
-z <- sel_CMIP5_mon(data.frame(LAT = c(43.9364), LON = c(-70.6875)))
-z
+# z <- sel_CMIP5_mon(data.frame(LAT = c(43.9364), LON = c(-70.6875)))
+# z
 
 
 
@@ -150,13 +151,13 @@ summary_stats<- function(dat, year1, year2, RCP){
                               "Yearly Average Min Temp",
                               "Annual Precipitation"),
                    Unit = c("°C", "°C", "°C", "mm/yr"),
-                   Year1 = c(round(mean(yr1$meantmp, na.rm = T), 2),
-                             round(mean(yr1$maxtmp, na.rm = T), 2),
-                             round(mean(yr1$mintmp, na.rm = T), 2),
+                   Year1 = c(round(mean(yr1$mean_temp, na.rm = T), 2),
+                             round(mean(yr1$max_temp, na.rm = T), 2),
+                             round(mean(yr1$min_temp, na.rm = T), 2),
                              round(mean(yr1$precip, na.rm = T)*365, 2)),
-                   Year2 = c(round(mean(yr2$meantmp, na.rm = T), 2),
-                             round(mean(yr2$maxtmp, na.rm = T), 2),
-                             round(mean(yr2$mintmp, na.rm = T), 2),
+                   Year2 = c(round(mean(yr2$mean_temp, na.rm = T), 2),
+                             round(mean(yr2$max_temp, na.rm = T), 2),
+                             round(mean(yr2$min_temp, na.rm = T), 2),
                              round(mean(yr2$precip, na.rm = T)*365, 2))) %>%
     mutate(Difference = Year2 - Year1,
            Difference = round(Difference, 2))

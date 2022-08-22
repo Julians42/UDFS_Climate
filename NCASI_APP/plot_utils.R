@@ -22,18 +22,23 @@ plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, c
   print(names(CI_dat))
   # Process Data to yearly level based on parameter of interest, set metric and unit params
   if (var %in% c("mean_temp")) {
-    CI_dat <- CI_dat %>% select(YR, RCP, meantmp, meantmp_LB, meantmp_UB) %>% 
-      rename(ens_mean = "meantmp", LB = "meantmp_LB", UB = "meantmp_UB") %>% ungroup()
+    CI_dat <- CI_dat %>% select(YR, RCP, mean_temp, mean_temp_LB, mean_temp_UB) %>% 
+      rename(ens_mean = "mean_temp", LB = "mean_temp_LB", UB = "mean_temp_UB") %>% ungroup()
     metric <- "Mean Temperature"
   } else if (var %in% c("precip")) {
-    CI_dat <- CI_dat %>% summarize(annual_mean = mean(get(var))*365.25) # convert from mm/day -> mm/yr
+    CI_dat <- CI_dat %>% select(YR, RCP, precip, precip_LB, precip_UB) %>% 
+      rename(ens_mean = "precip", LB = "precip_LB", UB = "precip_UB") %>% ungroup() %>% 
+      mutate(ens_mean = ens_mean*365.25, LB = LB*365.25, UB = UB*365.25)
+    #CI_dat <- CI_dat %>% summarize(annual_mean = mean(get(var))*365.25) # convert from mm/day -> mm/yr
     metric <- "Mean Precipitation"
     unit <- "(mm/yr)" # update unit for precipitation
   } else if (var %in% c("max_temp")) {
-    CI_dat <- CI_dat %>% summarize(annual_mean = max(get(var)))
+    CI_dat <- CI_dat %>% select(YR, RCP, max_temp, max_temp_LB, max_temp_UB) %>% 
+      rename(ens_mean = "max_temp", LB = "max_temp_LB", UB = "max_temp_UB") %>% ungroup()
     metric <- "Max Temperature"
   } else { # then var == min_temp so return annual minimum 
-    CI_dat  <- CI_dat %>% summarize(annual_mean = min(get(var)))
+    CI_dat <- CI_dat %>% select(YR, RCP, min_temp, min_temp_LB, min_temp_UB) %>% 
+      rename(ens_mean = "min_temp", LB = "min_temp_LB", UB = "min_temp_UB") %>% ungroup()
     metric <- "Min Temperature"
   }
 
@@ -161,6 +166,9 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
 # ----------------------------------------------------
 
 # Plot Species Heatmap -------------------------------
+
+
+
 plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var = TRUE,
                                     hist_clim_x_tree_da = hist_clim_x_tree_dat) {
   #' Creates Heatmap of Tree Historical Distribution and Projected Location Pathway
@@ -184,58 +192,88 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
     stat_density2d(aes(alpha=..level..),  bins=10, geom="polygon")+
     scale_alpha(range = c(0.1, 0.3), guide="none")
   
-  # select aggregation function based on inputs
-  f_x <- mean
-  f_y <- mean
-  if (var_x == "max_temp") {
-    f_x <- max
-  } else if (var_x == "min_temp") {
-    f_x <- min
-  }
-  if (var_y == "max_temp") {
-    f_y <- max
-  } else if (var_y == "min_temp") {
-    f_y <- min
-  }
+  # rename columns
+  # full_dat <- full_dat %>% rename(mean_temp = "meantmp", max_temp = "maxtmp", min_temp = "mintmp", 
+  #                                 mean_temp_LB = "meantmp.1", mean_temp_UB = "meantmp.2", max_temp_LB  = "maxtmp.1",
+  #                                 max_temp_UB = "maxtmp.2", min_temp_LB = "mintmp.1", min_temp_UB = "mintmp.2", 
+  #                                 precip_LB = "precip.1", precip_UB = "precip.2")
+  
   
   # Load climate data from selected location, select RCP, and group to decadal averages
-  clim_dat <- full_dat %>% dplyr::select(RCP, YR, MON, MODEL, var_x, var_y) %>% 
-    drop_na() %>% # na.rm = T breaks on min/max - patch with dropna 
+  mean_dat <- full_dat %>% dplyr::select(RCP, YR, var_x, var_y, 
+                                         paste(var_x, "LB", sep = "_"), 
+                                         paste(var_x, "UB", sep = "_"),
+                                         paste(var_y, "LB", sep = "_"),
+                                         paste(var_y, "UB", sep = "_")) %>% 
+    drop_na() %>% 
     dplyr::filter(RCP == rcps_) %>% 
     mutate(Decade = round(YR / 10) * 10) %>% 
-    group_by(RCP, Decade, MODEL) %>% 
-    summarize(x_var = f_x(get(var_x)),
-              y_var = f_y(get(var_y)))
+    group_by(Decade) %>% 
+    summarize(x_var = mean(get(var_x)),
+              y_var = mean(get(var_y)),
+              xLB = mean(get(paste(var_x, "LB", sep = "_"))),
+              xUB = mean(get(paste(var_x, "UB", sep = "_"))),
+              yLB = mean(get(paste(var_y, "LB", sep = "_"))),
+              yUB = mean(get(paste(var_y, "UB", sep = "_"))))
   
   # calculate the ensemble means for point of interest
-  mean_dat <- clim_dat %>% ungroup %>% 
-    group_by(Decade) %>% 
-    summarize(x_var = mean(x_var), 
-              y_var = mean(y_var)) %>% 
-    ungroup()
+  # mean_dat <- clim_dat %>% ungroup %>% 
+  #   group_by(Decade) %>% 
+  #   summarize(x_var = mean(x_var), 
+  #             y_var = mean(y_var)) %>% 
+  #   ungroup()
   
-
   
   if (var) {
     print("adding variability ...")
-    #p_dat <- clim_dat %>% ungroup() %>% group_by(MODEL)
-    # add climate data to map from point of interest - across ensemble members
-    plt <- plt + geom_line(data=clim_dat %>% ungroup() %>% group_by(MODEL), 
-                           aes(x = x_var, y = y_var, color = `Decade`), alpha = 0.2,
-                           stroke = 0.5)+
-      scale_color_viridis_c(direction=-1)
+    # generate a set of points as the convex hull 
+    hull_dat <- rbind(mean_dat %>% select(Decade, xLB, yLB) %>% rename(x = 2, y = 3), 
+                      mean_dat %>% select(Decade, xUB, yUB) %>% rename(x = 2, y = 3),
+                      mean_dat %>% select(Decade, xLB, yUB) %>% rename(x = 2, y = 3),
+                      mean_dat %>% select(Decade, xUB, yLB) %>% rename(x = 2, y = 3))
+    # # add variability
+    # plt <- plt + geom_polygon(data = hull_dat %>% slice(chull(x, y)), aes(x=x, y=y), alpha = 0.2, fill = 'red')+
+    #   geom_point(data = hull_dat, aes(x=x, y=y, color = `Decade`), alpha = 1)
     
-    # add ensemble mean by decade to map
-    plt <- plt + geom_line(data = mean_dat, aes(x=x_var, y=y_var, color = `Decade`))+
-      geom_point(data = mean_dat, aes(x=x_var, y=y_var, color = Decade), alpha = 1)
+    # poly_dat <- hull_dat %>% group_by(Decade) %>% 
+    #   slice(chull(x, y)) 
+    # plt <- plt+ geom_polygon(data = poly_dat, aes(x, y,  fill = factor(Decade), color = factor(Decade), alpha = 0.2))
+    
+    z3 <- hull_dat %>% group_by(Decade) %>% 
+      nest() %>% 
+      mutate(
+        hull = map(data, ~ with(.x, chull(x, y))),
+        out = map2(data, hull, ~ .x[.y,,drop=FALSE])
+      ) %>%
+      select(-data) %>%
+      unnest(cols = c(hull, out)) 
+    
+    # for(d in z3$Decade){
+    #   dd <- z3 %>% filter(Decade ==d) %>% slice(chull(x, y))
+    #   plt <- plt + geom_polygon(data = dd, aes(x, y,  fill = Decade), alpha = 0.2)+
+    #     scale_color_viridis_c(direction=-1)
+    # }
+    
+    plt <- plt+scale_fill_continuous(type = "viridis")
+    for(d in z3$Decade){
+      dd <- z3 %>% filter(Decade ==d) %>% group_by(Decade) %>% slice(chull(x, y))
+      plt <- plt + geom_polygon(data = dd, aes(x,y, fill = Decade), alpha = 0.05) 
+    }
+    
+    
+    # plot ensemble members 
+    plt <- plt + geom_path(data = mean_dat, aes(x = x_var, y = y_var), size = 2)+
+      geom_line(data = mean_dat, aes(x=x_var, y=y_var, color = `Decade`), size = 1)+
+      geom_point(data = mean_dat, aes(x=x_var, y=y_var, fill = `Decade`), stroke = 2, alpha = 1, color = "black", pch = 21, size =3)+
+      scale_color_viridis_c(direction=1)
     
   } else {
     # add ensemble mean by decade to map
     plt <- plt + geom_line(data = mean_dat, aes(x=x_var, y=y_var, color = `Decade`))+
       geom_point(data = mean_dat, aes(x=x_var, y=y_var, color = Decade), alpha = 1)+
-      scale_color_viridis_c(direction=-1)
+      scale_color_viridis_c(direction=1)
   }
-
+  
   
   # remove density fill legend, update plot labels
   labels. <- data.frame(row.names = c("mean_temp", "max_temp", "min_temp", "precip"), 
@@ -246,5 +284,5 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
     labs(x=labels.[var_x, ], y=labels.[var_y,], 
          title="Tree Density for Selected Species", fill="Density")
   plt <- plt +theme_bw()
-  return(plt)  
+  return(ggplotly(plt))
 }
