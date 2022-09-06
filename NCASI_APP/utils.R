@@ -6,6 +6,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinycssloaders)
+options(tidyverse.quiet = TRUE)
 library(tidyverse)
 library(leaflet)
 library(plotly)

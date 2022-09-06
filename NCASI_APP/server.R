@@ -247,12 +247,15 @@ app_info <- modalDialog(
     ))
   })
   
+
+  
   app_data <- reactive({
 
     if(is.null(input$map_draw_stop)){
       # extract latitude/longitude from user click
-      lat <- input$map_shape_click[[3]]
-      lon <- input$map_shape_click[[2]]
+
+      lat <- input$map_shape_click$lat
+      lon <- input$map_shape_click$lng
       locations <- data.frame(LAT = c(lat), LON = c(lon))
       print(locations)
       # load data for requested point
@@ -291,8 +294,8 @@ app_info <- modalDialog(
     
     if(is.null(input$map_draw_stop)){
       # extract latitude/longitude from user click
-      lat <- input$map_shape_click[[3]]
-      lon <- input$map_shape_click[[2]]
+      lat <- input$map_shape_click$lat
+      lon <- input$map_shape_click$lng
       locations <- data.frame(LAT = c(lat), LON = c(lon))
 
       sel_CMIP5_mon(locations)
@@ -323,8 +326,57 @@ app_info <- modalDialog(
     }
   })
   
+  rcp_react <- reactive({
+    # make rcp reactive to update plots when user makes selection
+    input$rcps
+  })
+  
+  year1 <- reactive({
+    # make year reactive to update plots when user makes selection
+    input$year[1]
+  })
+  
+  year2 <- reactive({
+    # make year reactive to update plots when user makes selection
+    input$year[2]
+  })
+  # Cleaner way but unresponsive to rcp reactive
+  # output$table <- DT::renderDataTable({
+  #   summary_stats(app_data(), year1 = year2(), year2 = year2(), RCP = rcp_react())
+  # })
   output$table <- DT::renderDataTable({
-    summary_stats(app_data(), year1 = input$year[1], year2 = input$year[2], RCP = input$rcps)
+
+    yr1 <- app_data() %>%
+      drop_na() %>%
+      dplyr::filter(YR == input$year[1] &
+                      RCP == input$rcps)
+
+    yr2 <- app_data() %>%
+      drop_na() %>%
+      dplyr::filter(YR == input$year[2] &
+                      RCP == input$rcps)
+
+    df <- data.frame(Metric = c("Yearly Mean Temp",
+                                "Yearly Average Max Temp",
+                                "Yearly Average Min Temp",
+                                "Annual Precipitation"),
+                     Unit = c("°C", "°C", "°C", "mm/yr"),
+                     Year1 = c(round(mean(yr1$mean_temp, na.rm = T), 2),
+                               round(mean(yr1$max_temp, na.rm = T), 2),
+                               round(mean(yr1$min_temp, na.rm = T), 2),
+                               round(mean(yr1$precip, na.rm = T)*365, 2)),
+                     Year2 = c(round(mean(yr2$mean_temp, na.rm = T), 2),
+                               round(mean(yr2$max_temp, na.rm = T), 2),
+                               round(mean(yr2$min_temp, na.rm = T), 2),
+                               round(mean(yr2$precip, na.rm = T)*365, 2))) %>%
+      mutate(Difference = Year2 - Year1,
+             Difference = round(Difference, 2))
+
+    colnames(df)[3] <- paste(input$year[1])
+    colnames(df)[4] <- paste(input$year[2])
+    df %>%
+      DT::datatable(options = list(dom = 't'))
+
   })
   
   output$lines <- renderPlotly({

@@ -3,7 +3,7 @@
 # Summer 2022 ----------------------------------------
 
 # slim data files 
-clim_dat <- read.csv("~/Documents/Research/FIA_22/UFDS_Climate/data/yearly_ci_all.csv")
+clim_dat <- read.csv("~/Documents/Research/FIA_22/UFDS_Climate/data/yearly_ci_all.csv") %>% drop_na()
 clim_dat <- clim_dat[-1, ]
 clim_dat[] <- lapply(clim_dat, function(x) as.numeric(as.character(x)))
 #clim_dat <- clim_dat %>% drop_na() %>% dplyr::mutate_if(is.character, as.numeric())
@@ -166,5 +166,6 @@ summary_stats<- function(dat, year1, year2, RCP){
   colnames(df)[4] <- paste(year2)
   df %>%
     DT::datatable(options = list(dom = 't'))
+  # data.frame(df)
 }
   
