@@ -168,7 +168,6 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
 # Plot Species Heatmap -------------------------------
 
 
-
 plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var = TRUE,
                                     hist_clim_x_tree_da = hist_clim_x_tree_dat) {
   #' Creates Heatmap of Tree Historical Distribution and Projected Location Pathway
@@ -187,18 +186,6 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
   # for KDE density plot we repeat rows based on number of 1000s of acres (mem limit constraint)
   weighted.df <- filt_clim_x_tree_dat[rep(seq_len(dim(filt_clim_x_tree_dat)[1]), filt_clim_x_tree_dat$ACRES)]
   
-  # Plot tree data baseline
-  plt <- ggplot(weighted.df, aes(x=get(var_x), y=get(var_y))) +
-    stat_density2d(aes(alpha=..level..),  bins=10, geom="polygon")+
-    scale_alpha(range = c(0.1, 0.3), guide="none")
-  
-  # rename columns
-  # full_dat <- full_dat %>% rename(mean_temp = "meantmp", max_temp = "maxtmp", min_temp = "mintmp", 
-  #                                 mean_temp_LB = "meantmp.1", mean_temp_UB = "meantmp.2", max_temp_LB  = "maxtmp.1",
-  #                                 max_temp_UB = "maxtmp.2", min_temp_LB = "mintmp.1", min_temp_UB = "mintmp.2", 
-  #                                 precip_LB = "precip.1", precip_UB = "precip.2")
-  
-  
   # Load climate data from selected location, select RCP, and group to decadal averages
   mean_dat <- full_dat %>% dplyr::select(RCP, YR, var_x, var_y, 
                                          paste(var_x, "LB", sep = "_"), 
@@ -216,13 +203,18 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
               yLB = mean(get(paste(var_y, "LB", sep = "_"))),
               yUB = mean(get(paste(var_y, "UB", sep = "_"))))
   
-  # calculate the ensemble means for point of interest
-  # mean_dat <- clim_dat %>% ungroup %>% 
-  #   group_by(Decade) %>% 
-  #   summarize(x_var = mean(x_var), 
-  #             y_var = mean(y_var)) %>% 
-  #   ungroup()
-  
+  # plot background density
+  fig <- plot_ly(data = weighted.df, x = ~get(var_x), y = ~get(var_y)) %>% 
+    add_trace(type = 'histogram2dcontour',
+              showlegend = F,
+              histnorm = "probability density",
+              nbinsx = 50,
+              nbinsy = 50,
+              line = list(smoothing = 1.3),
+              colorscale = "Greys",
+              reversescale = TRUE,
+              showscale = F,
+              name = "Species Density")  
   
   if (var) {
     print("adding variability ...")
@@ -230,16 +222,8 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
     hull_dat <- rbind(mean_dat %>% select(Decade, xLB, yLB) %>% rename(x = 2, y = 3), 
                       mean_dat %>% select(Decade, xUB, yUB) %>% rename(x = 2, y = 3),
                       mean_dat %>% select(Decade, xLB, yUB) %>% rename(x = 2, y = 3),
-                      mean_dat %>% select(Decade, xUB, yLB) %>% rename(x = 2, y = 3))
-    # # add variability
-    # plt <- plt + geom_polygon(data = hull_dat %>% slice(chull(x, y)), aes(x=x, y=y), alpha = 0.2, fill = 'red')+
-    #   geom_point(data = hull_dat, aes(x=x, y=y, color = `Decade`), alpha = 1)
-    
-    # poly_dat <- hull_dat %>% group_by(Decade) %>% 
-    #   slice(chull(x, y)) 
-    # plt <- plt+ geom_polygon(data = poly_dat, aes(x, y,  fill = factor(Decade), color = factor(Decade), alpha = 0.2))
-    
-    z3 <- hull_dat %>% group_by(Decade) %>% 
+                      mean_dat %>% select(Decade, xUB, yLB) %>% rename(x = 2, y = 3)) %>% 
+      group_by(Decade) %>% 
       nest() %>% 
       mutate(
         hull = map(data, ~ with(.x, chull(x, y))),
@@ -247,32 +231,49 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
       ) %>%
       select(-data) %>%
       unnest(cols = c(hull, out)) 
+    # add variability
     
-    # for(d in z3$Decade){
-    #   dd <- z3 %>% filter(Decade ==d) %>% slice(chull(x, y))
-    #   plt <- plt + geom_polygon(data = dd, aes(x, y,  fill = Decade), alpha = 0.2)+
-    #     scale_color_viridis_c(direction=-1)
-    # }
-    
-    plt <- plt+scale_fill_continuous(type = "viridis")
-    for(d in z3$Decade){
-      dd <- z3 %>% filter(Decade ==d) %>% group_by(Decade) %>% slice(chull(x, y))
-      plt <- plt + geom_polygon(data = dd, aes(x,y, fill = Decade), alpha = 0.05) 
+    #obnoxiously defined colorscheme 
+    colorScale <- data.frame(z = seq(2000, 2100, 10), col = c("#440154", "#472474", "#414387", 
+                                                              "#355F8D", "#2A788E", "#21918C", 
+                                                              "#24A883", "#44BE70","#7BD151", 
+                                                              "#BCDE28", "#FDE725"))
+    for (D in seq(from = 2000, to = 2100, by = 10)){
+      dd <- hull_dat %>% filter(Decade ==D) %>% group_by(Decade) %>% slice(chull(x, y))
+      fig <- fig %>% add_trace(data = dd,
+                               x = ~x,
+                               y = ~y,
+                               type = 'scatter',
+                               mode = 'none',
+                               fill = 'toself',
+                               fillcolor = (colorScale %>% filter(z == D))$col,
+                               # fillpattern = list(
+                               #   fillmode = "overlay"
+                               #   ),
+                               opacity = 0.2,
+                               showlegend = F
+      )
     }
     
-    
-    # plot ensemble members 
-    plt <- plt + geom_path(data = mean_dat, aes(x = x_var, y = y_var), size = 2)+
-      geom_line(data = mean_dat, aes(x=x_var, y=y_var, color = `Decade`), size = 1)+
-      geom_point(data = mean_dat, aes(x=x_var, y=y_var, fill = `Decade`), stroke = 2, alpha = 1, color = "black", pch = 21, size =3)+
-      scale_color_viridis_c(direction=1)
-    
-  } else {
-    # add ensemble mean by decade to map
-    plt <- plt + geom_line(data = mean_dat, aes(x=x_var, y=y_var, color = `Decade`))+
-      geom_point(data = mean_dat, aes(x=x_var, y=y_var, color = Decade), alpha = 1)+
-      scale_color_viridis_c(direction=1)
-  }
+  } 
+  
+  fig <- fig %>% add_trace(data = mean_dat,
+                           type = 'scatter',
+                           x = ~x_var,
+                           y = ~y_var,
+                           #color = ~Decade,
+                           mode = 'markers',
+                           marker= list(
+                             size = 20,
+                             color = ~Decade,
+                             alpha = 1,
+                             colorbar = list(
+                               title = "Decade"
+                             ),
+                             colorscale = "Viridis",
+                             name = "Decade"
+                           )
+  )
   
   
   # remove density fill legend, update plot labels
@@ -280,9 +281,12 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
                         val = c("Yearly Mean Temperature", "Yearly Max Temperature", "Yearly Min Temperature", 
                                 "Avg Daily Precipitation"))
   
-  plt <- plt + guides(fill="none")+
-    labs(x=labels.[var_x, ], y=labels.[var_y,], 
-         title="Tree Density for Selected Species", fill="Density")
-  plt <- plt +theme_bw()
-  return(ggplotly(plt))
+  
+  fig <- fig %>% layout(
+    title = "Tree Density for Selected Species",
+    yaxis = list(title = labels.[var_y, ]),
+    xaxis = list(title = labels.[var_x, ])
+  )
+  
+  return(fig)
 }
