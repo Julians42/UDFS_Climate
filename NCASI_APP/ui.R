@@ -31,7 +31,7 @@ ui <- bootstrapPage(
                   draggable = T,
                   selectizeInput(inputId = "species",
                                  label = "Tree Species",
-                                 choices = unique(tree_data$COMMON_NAME),
+                                 choices = unique(species_codes$COMMON_NAME),
                                  selected = "Red Maple",
                                  multiple = F),
                   sliderInput("year", "Reference Year - Projected Year", 
@@ -63,8 +63,7 @@ ui <- bootstrapPage(
                                      h5("Use your cursor to click on a single rectangular plot or 
                                         click the pentagon in the top left corner to draw a shape 
                                         around several plots. Data for all plots inside of the drawn 
-                                        shape will be averaged in visualizations and tables. Selecting
-                                        more than 10 plots at a time may cause speed issues.", align = "center"),
+                                        shape will be averaged in visualizations and tables.", align = "center"),
                                      br(),
                                      div(style = "display:inline-block",
                                          actionButton("button3", "Click Me for More Help",

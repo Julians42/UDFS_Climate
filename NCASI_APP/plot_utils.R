@@ -19,7 +19,7 @@ plt_clim_trajectory_CMIP5 <- function(full_dat, var, year1, year2, toggle_var, c
 
   # Select year range, clean data, and group
   CI_dat <- full_dat %>% filter(YR >= year1 & YR <= year2)
-  print(names(CI_dat))
+
   # Process Data to yearly level based on parameter of interest, set metric and unit params
   if (var %in% c("mean_temp")) {
     CI_dat <- CI_dat %>% select(YR, RCP, mean_temp, mean_temp_LB, mean_temp_UB) %>% 
@@ -142,10 +142,6 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
                         val = c("Mean Temperature (°C)", "Max Temperature (°C)", 
                                 "Min Temperature (°C)", "Daily Precipitation (mm/day)"))
   
-  # plt <- plt + guides(fill="none")+
-  #   labs(x=labels.[var_x, ], y=labels.[var_y,], 
-  #        title="Tree Density for Selected Species", fill="Density")
-  
   # plot traces across unique ID 
   plt <- dat %>% group_by(TRACE_ID) %>% 
     plot_ly(x = ~month,
@@ -155,7 +151,7 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
             #alpha = ~ALPHA, # Having trouble setting this
             split = ~TRACE_ID,
             mode = "lines+markers", 
-            visibility = 'legendonly', 
+            #visibility = 'legendonly', 
             legendgroup = ~RCP, 
             name = ~TRACE_ID) %>% 
     layout(xaxis = list(title = "Month"),
@@ -166,8 +162,6 @@ plt_month_trajectory <- function(full_dat, var, year1, year2) {
 # ----------------------------------------------------
 
 # Plot Species Heatmap -------------------------------
-
-
 plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var = TRUE,
                                     hist_clim_x_tree_da = hist_clim_x_tree_dat) {
   #' Creates Heatmap of Tree Historical Distribution and Projected Location Pathway
@@ -217,7 +211,6 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
               name = "Species Density")  
   
   if (var) {
-    print("adding variability ...")
     # generate a set of points as the convex hull 
     hull_dat <- rbind(mean_dat %>% select(Decade, xLB, yLB) %>% rename(x = 2, y = 3), 
                       mean_dat %>% select(Decade, xUB, yUB) %>% rename(x = 2, y = 3),
@@ -233,11 +226,12 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
       unnest(cols = c(hull, out)) 
     # add variability
     
-    #obnoxiously defined colorscheme 
+    #obnoxiously defined discrete colorscheme 
     colorScale <- data.frame(z = seq(2000, 2100, 10), col = c("#440154", "#472474", "#414387", 
                                                               "#355F8D", "#2A788E", "#21918C", 
                                                               "#24A883", "#44BE70","#7BD151", 
                                                               "#BCDE28", "#FDE725"))
+    # add uncertainty for each decade
     for (D in seq(from = 2000, to = 2100, by = 10)){
       dd <- hull_dat %>% filter(Decade ==D) %>% group_by(Decade) %>% slice(chull(x, y))
       fig <- fig %>% add_trace(data = dd,
@@ -256,7 +250,7 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
     }
     
   } 
-  
+  # add decadal means
   fig <- fig %>% add_trace(data = mean_dat,
                            type = 'scatter',
                            x = ~x_var,
@@ -281,7 +275,7 @@ plt_clim_x_tree_heatmap <- function(full_dat, tree_id, var_x, var_y, rcps_, var 
                         val = c("Yearly Mean Temperature", "Yearly Max Temperature", "Yearly Min Temperature", 
                                 "Avg Daily Precipitation"))
   
-  
+  # Label Axes
   fig <- fig %>% layout(
     title = "Tree Density for Selected Species",
     yaxis = list(title = labels.[var_y, ]),

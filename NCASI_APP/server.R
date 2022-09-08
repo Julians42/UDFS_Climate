@@ -2,9 +2,7 @@
 # UDFS: Maxwell Vanlandschoot and Julian Schmitt -----
 # Summer 2022 ----------------------------------------
 
-  
-
-# tdf <-  tibble(LAT = c(44.8125, 44.9375, 44.8125, 44.9375), LON = c(73.0625, 73.0625, 72.9375, 72.9375))
+source("utils.R")
 
 shinyServer(function(input, output, session) {
 
@@ -257,10 +255,7 @@ app_info <- modalDialog(
       lat <- input$map_shape_click$lat
       lon <- input$map_shape_click$lng
       locations <- data.frame(LAT = c(lat), LON = c(lon))
-      print(locations)
-      # load data for requested point
-      # dat <- subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
-      # print(dim(dat))
+      # load data
       sel_CMIP5_dat(locations)
       
 
@@ -268,8 +263,7 @@ app_info <- modalDialog(
     }else{
         #use the draw_stop event to detect when users finished drawing
         req(input$map_draw_stop)
-        print(input$map_draw_new_feature)
-        
+
         #get the coordinates of the polygon
         polygon_coordinates <- input$map_draw_new_feature$geometry$coordinates[[1]]
         
@@ -285,7 +279,6 @@ app_info <- modalDialog(
           dplyr::select(c(LON, LAT)) %>% tibble()
         
         # load data
-        # subset(df, (LAT %in% locations$LAT) & (LON %in% locations$LON))
         sel_CMIP5_dat(locations)
     }
   })
@@ -297,16 +290,13 @@ app_info <- modalDialog(
       lat <- input$map_shape_click$lat
       lon <- input$map_shape_click$lng
       locations <- data.frame(LAT = c(lat), LON = c(lon))
-
+      # load data
       sel_CMIP5_mon(locations)
-      
-      
       
     }else{
       #use the draw_stop event to detect when users finished drawing
       req(input$map_draw_stop)
-      print(input$map_draw_new_feature)
-      
+
       #get the coordinates of the polygon
       polygon_coordinates <- input$map_draw_new_feature$geometry$coordinates[[1]]
       
@@ -340,10 +330,12 @@ app_info <- modalDialog(
     # make year reactive to update plots when user makes selection
     input$year[2]
   })
+  
   # Cleaner way but unresponsive to rcp reactive
   # output$table <- DT::renderDataTable({
   #   summary_stats(app_data(), year1 = year2(), year2 = year2(), RCP = rcp_react())
   # })
+  
   output$table <- DT::renderDataTable({
 
     yr1 <- app_data() %>%
@@ -392,77 +384,41 @@ app_info <- modalDialog(
     plt_clim_x_tree_heatmap(app_data(), input$species, input$x_axis_metric, input$y_axis_metric, input$rcps, input$density_var, hist_clim_x_tree_dat)
   })
   
-  output$julian_break <- renderTable({
-    
-    scens <- c(26, 45, 60,85)
-    fill_cols <-c('rgba(48, 90, 219, 0.7)', 'rgba(98, 170, 88, 0.7)', 'rgba(255, 255, 0, 0.7)', 'rgba(255, 0, 0, 0.7)')
-    
-    metric <- input$metrics_line
-    yr_metric <- paste("yr_", input$metrics_line, sep = "")
-    
-    dat <- app_data() %>% 
-        dplyr::select(c(YR, RCP, !!metric, !!yr_metric))
-    
-    dat <- dat %>%
-        group_by(YR, RCP) %>%
-        summarize(UB = quantile(x = dat[3], probs = 0.95, na.rm = T),
-                  LB = quantile(x = dat[3], probs = 0.05, na.rm = T),
-                  ens_mean = round(x = dat[4], 2)) %>%
-      unique()
-  
-    dat %>% head(10)
-    
-  })
-  
   output$map <- renderLeaflet({
-    tree_dat <- tree_data %>% 
-      drop_na(COMMON_NAME) %>%
-      filter(COMMON_NAME == input$species) %>%
-      unique()
+    # add id
+    background_map <- background_map %>% mutate(poly_id = 1:nrow(background_map))
     
-    dat_1 <- RCP_60_trim %>%
-      filter(YR == input$year[1] &
-               MON == 6)
+    # tune color
+    leaf_pallet <- colorBin("viridis", domain = background_map$meantmp)
     
-    dat_1 <- dat_1 %>%
-      mutate(poly_id = 1:nrow(dat_1))
-    
-    dat_join <- full_join(tree_dat, dat_1) %>%
-      drop_na()
-    
-    leaf_pallet <- colorBin("viridis", domain = dat_join$meantmp)
-    
-    dat_join %>%
-      distinct(ACRES, LAT, LON, meantmp, .keep_all= TRUE) %>%
-      distinct(ACRES, .keep_all= TRUE) %>%
+    # use leaflet to plot a tiled map of mean temperature across the region of interest
+    background_map %>%
+      distinct(LAT, LON, meantmp, .keep_all= TRUE) %>%
       distinct(meantmp, .keep_all= TRUE) %>%
       leaflet() %>%
       addTiles() %>%
-      addRectangles(
-        lng1 = dat_join$lon1,
-        lng2 = dat_join$lon2,
-        lat1 = dat_join$lat1,
-        lat2 = dat_join$lat2,
+      addRectangles( # adds gridded climate data
+        lng1 = background_map$lon1,
+        lng2 = background_map$lon2,
+        lat1 = background_map$lat1,
+        lat2 = background_map$lat2,
         stroke = T,
         weight = 1,
         color = "grey",
         fill = T,
-        fillColor = ~leaf_pallet(dat_join$meantmp),
+        fillColor = ~leaf_pallet(background_map$meantmp),
         fillOpacity = 0.3,
-        popup = paste0(
-          "<b>", "Tree Information", "</b>",
-          "<br>Tree Type: ", dat_join$COMMON_NAME,
-          "<br>Acres of Tree: ", round(dat_join$ACRES, 1),
-          "<br>",
+        popup = paste0( # adds pop-up on click
           "<b>", "Plot Location", "</b>",
-          "<br>Latitude: ", dat_join$LAT,
-          "<br>Longitude: ", dat_join$LON
+          "<br>Latitude: ", background_map$LAT,
+          "<br>Longitude: ", background_map$LON,
+          "<br>Mean Temperature: ", round(background_map$meantmp, 2)
         ),  
       ) %>%
-      addLegend("bottomright", 
+      addLegend("bottomright", # adds legendbar
                 pal = leaf_pallet, 
-                values = ~dat_join$meantmp,
-                title = "PRISM Annual Mean Temperature (°C)",
+                values = ~background_map$meantmp,
+                title = "2000s Annual Mean Temperature (°C)",
                 opacity = 1
       ) %>%
       addDrawToolbar(
@@ -476,10 +432,9 @@ app_info <- modalDialog(
       fitBounds(-72, 43, -70, 45)
   })
 
-
+  # adds lookup table and download data function
   output$lookup <- DT::renderDataTable({
     app_data() %>%
-      select(-V1) %>%
       mutate(across(numeric(), round, 2)) %>%
       DT::datatable(options = list(pageLength = 6,
                                    lengthMenu = c(4, 6, 8)))
